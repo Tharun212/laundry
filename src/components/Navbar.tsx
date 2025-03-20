@@ -4,15 +4,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { WashingMachine, LogOut } from 'lucide-react';
 
-const Navbar = () => {
+const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isActive = (path) => {
+  const isActive = (path: string): boolean => {
     return location.pathname === path;
   };
 
-  const handleLogout = () => {
+  const handleLogout = (): void => {
     // Clear auth
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userRole');
