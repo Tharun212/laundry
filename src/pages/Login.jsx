@@ -7,16 +7,18 @@ import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { WashingMachine, ArrowLeft, Mail, Smartphone, KeyRound, UserPlus, LogIn } from 'lucide-react';
+import { WashingMachine, ArrowLeft, Mail, Smartphone, KeyRound, UserPlus, LogIn, Briefcase } from 'lucide-react';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  isWorker: z.boolean().default(false),
 });
 
 const signupSchema = z.object({
@@ -51,6 +53,7 @@ const Login = () => {
     defaultValues: {
       email: location.state?.email || "",
       password: "",
+      isWorker: false,
     },
   });
 
@@ -73,7 +76,14 @@ const Login = () => {
       const { error } = await signIn(values.email, values.password);
       
       if (!error) {
-        navigate('/dashboard');
+        // Redirect based on worker flag
+        if (values.isWorker) {
+          localStorage.setItem('userRole', 'worker');
+          navigate('/worker');
+        } else {
+          localStorage.setItem('userRole', 'student');
+          navigate('/dashboard');
+        }
       }
     } finally {
       setLoading(false);
@@ -176,6 +186,27 @@ const Login = () => {
                             />
                           </FormControl>
                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={loginForm.control}
+                      name="isWorker"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="flex items-center gap-2 text-indigo-700 cursor-pointer">
+                              <Briefcase className="h-4 w-4" />
+                              Login as Worker
+                            </FormLabel>
+                          </div>
                         </FormItem>
                       )}
                     />
