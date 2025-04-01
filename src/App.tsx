@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./hooks/useSupabaseAuth";
-import StudentEntry from "./pages/StudentEntry";
 import Login from "./pages/Login";
 import Landing from "./pages/Landing";
 import Services from "./pages/Services";
@@ -25,7 +24,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<StudentEntry />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
             <Route 
               path="/dashboard" 

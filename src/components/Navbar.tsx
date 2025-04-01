@@ -4,27 +4,43 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { WashingMachine, LogOut } from 'lucide-react';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { toast } from "@/hooks/use-toast";
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut } = useSupabaseAuth();
+  const { signOut, user } = useSupabaseAuth();
 
   const isActive = (path: string): boolean => {
     return location.pathname === path;
   };
 
   const handleLogout = async (): Promise<void> => {
-    await signOut();
-    navigate('/');
+    try {
+      await signOut();
+      navigate('/login');
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account",
+      });
+    } catch (error) {
+      console.error("Error logging out:", error);
+      toast({
+        title: "Error logging out",
+        description: "There was a problem logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (!user) return null;
 
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex-shrink-0 flex items-center">
-            <WashingMachine className="h-8 w-8 text-blue-600 mr-2" />
+            <WashingMachine className="h-8 w-8 text-indigo-600 mr-2" />
             <span className="text-lg font-semibold text-gray-900">Laundry MS</span>
           </div>
           
@@ -32,7 +48,7 @@ const Navbar: React.FC = () => {
             <Button 
               variant={isActive('/dashboard') ? "default" : "ghost"} 
               onClick={() => navigate('/dashboard')}
-              className={isActive('/dashboard') ? "bg-blue-600 text-white" : "text-gray-700"}
+              className={isActive('/dashboard') ? "bg-indigo-600 text-white" : "text-gray-700"}
             >
               Home
             </Button>
@@ -40,7 +56,7 @@ const Navbar: React.FC = () => {
             <Button 
               variant={isActive('/services') ? "default" : "ghost"} 
               onClick={() => navigate('/services')}
-              className={isActive('/services') ? "bg-blue-600 text-white" : "text-gray-700"}
+              className={isActive('/services') ? "bg-indigo-600 text-white" : "text-gray-700"}
             >
               Services
             </Button>
@@ -48,7 +64,7 @@ const Navbar: React.FC = () => {
             <Button 
               variant={isActive('/cart') ? "default" : "ghost"} 
               onClick={() => navigate('/cart')}
-              className={isActive('/cart') ? "bg-blue-600 text-white" : "text-gray-700"}
+              className={isActive('/cart') ? "bg-indigo-600 text-white" : "text-gray-700"}
             >
               Cart
             </Button>
@@ -56,7 +72,7 @@ const Navbar: React.FC = () => {
             <Button 
               variant={isActive('/history') ? "default" : "ghost"} 
               onClick={() => navigate('/history')}
-              className={isActive('/history') ? "bg-blue-600 text-white" : "text-gray-700"}
+              className={isActive('/history') ? "bg-indigo-600 text-white" : "text-gray-700"}
             >
               Orders
             </Button>
