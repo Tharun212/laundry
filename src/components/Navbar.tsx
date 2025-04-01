@@ -3,20 +3,19 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { WashingMachine, LogOut } from 'lucide-react';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { signOut } = useSupabaseAuth();
 
   const isActive = (path: string): boolean => {
     return location.pathname === path;
   };
 
-  const handleLogout = (): void => {
-    // Clear auth
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('rollNumber');
+  const handleLogout = async (): Promise<void> => {
+    await signOut();
     navigate('/');
   };
 

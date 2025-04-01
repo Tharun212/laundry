@@ -8,93 +8,98 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { WashingMachine, ArrowLeft, Mail, Smartphone, KeyRound, UserPlus, LogIn } from 'lucide-react';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const signupSchema = z.object({
+  reg_number: z.string().min(1, "Roll number is required"),
+  full_name: z.string().min(1, "Full name is required"),
+  email: z.string().email("Please enter a valid email address"),
+  mobile: z.string().min(10, "Please enter a valid mobile number"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Please confirm your password"),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [loginData, setLoginData] = useState({
-    rollNumber: '',
-    password: '',
-  });
-  const [signupData, setSignupData] = useState({
-    rollNumber: '',
-    email: '',
-    mobile: '',
-    password: '',
-    confirmPassword: '',
-  });
   const [activeTab, setActiveTab] = useState("login");
   const [loading, setLoading] = useState(false);
+  const { signIn, signUp, user } = useSupabaseAuth();
 
+  // Redirect if already logged in
   useEffect(() => {
-    // If roll number is passed from the previous page, use it
-    if (location.state?.rollNumber) {
-      setLoginData(prev => ({ ...prev, rollNumber: location.state.rollNumber }));
+    if (user) {
+      navigate('/dashboard');
     }
-  }, [location.state]);
+  }, [user, navigate]);
 
-  const handleLoginChange = (e) => {
-    const { name, value } = e.target;
-    setLoginData(prev => ({ ...prev, [name]: value }));
-  };
+  // Initialize form for login
+  const loginForm = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: location.state?.email || "",
+      password: "",
+    },
+  });
 
-  const handleSignupChange = (e) => {
-    const { name, value } = e.target;
-    setSignupData(prev => ({ ...prev, [name]: value }));
-  };
+  // Initialize form for signup
+  const signupForm = useForm({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      reg_number: location.state?.rollNumber || "",
+      full_name: "",
+      email: "",
+      mobile: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
+  const handleLoginSubmit = async (values) => {
     setLoading(true);
-    
-    // Simulating API login call
-    setTimeout(() => {
-      setLoading(false);
-      // For demo: accept any non-empty password
-      if (loginData.password) {
-        // In a real app, you would save auth token/user data to context/local storage
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userRole', 'student');
-        localStorage.setItem('rollNumber', loginData.rollNumber);
+    try {
+      const { error } = await signIn(values.email, values.password);
+      
+      if (!error) {
         navigate('/dashboard');
-      } else {
-        toast({
-          title: "Login Failed",
-          description: "Invalid credentials. Please try again.",
-          variant: "destructive",
-        });
       }
-    }, 1000);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignupSubmit = (e) => {
-    e.preventDefault();
+  const handleSignupSubmit = async (values) => {
     setLoading(true);
-    
-    // Validate passwords match
-    if (signupData.password !== signupData.confirmPassword) {
+    try {
+      const { error } = await signUp(
+        values.email, 
+        values.password, 
+        {
+          reg_number: values.reg_number,
+          full_name: values.full_name,
+          mobile: values.mobile,
+        }
+      );
+      
+      if (!error) {
+        setActiveTab("login");
+        loginForm.setValue("email", values.email);
+      }
+    } finally {
       setLoading(false);
-      toast({
-        title: "Passwords Don't Match",
-        description: "Please make sure your passwords match.",
-        variant: "destructive",
-      });
-      return;
     }
-    
-    // Simulating API signup call
-    setTimeout(() => {
-      setLoading(false);
-      toast({
-        title: "Account Created",
-        description: "Your account has been created successfully. Please login.",
-      });
-      setActiveTab("login");
-      setLoginData(prev => ({ 
-        ...prev, 
-        rollNumber: signupData.rollNumber 
-      }));
-    }, 1500);
   };
 
   return (
@@ -129,49 +134,61 @@ const Login = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="rollNumber" className="flex items-center gap-2 text-indigo-700">
-                      <KeyRound className="h-4 w-4" />
-                      Roll Number
-                    </Label>
-                    <Input
-                      id="rollNumber"
-                      name="rollNumber"
-                      type="text"
-                      required
-                      value={loginData.rollNumber}
-                      onChange={handleLoginChange}
-                      placeholder="Enter your roll number"
-                      className="w-full border-indigo-200 focus:border-indigo-400"
+                <Form {...loginForm}>
+                  <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
+                    <FormField
+                      control={loginForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-indigo-700">
+                            <Mail className="h-4 w-4" />
+                            Email
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="email" 
+                              placeholder="Enter your email" 
+                              className="w-full border-indigo-200 focus:border-indigo-400" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="flex items-center gap-2 text-indigo-700">
-                      <KeyRound className="h-4 w-4" />
-                      Password
-                    </Label>
-                    <Input
-                      id="password"
+                    
+                    <FormField
+                      control={loginForm.control}
                       name="password"
-                      type="password"
-                      required
-                      value={loginData.password}
-                      onChange={handleLoginChange}
-                      placeholder="Enter your password"
-                      className="w-full border-indigo-200 focus:border-indigo-400"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-indigo-700">
+                            <KeyRound className="h-4 w-4" />
+                            Password
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="password" 
+                              placeholder="Enter your password" 
+                              className="w-full border-indigo-200 focus:border-indigo-400" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 transition-all duration-300 mt-4"
-                    disabled={loading}
-                  >
-                    {loading ? "Logging in..." : "Login"}
-                  </Button>
-                </form>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 transition-all duration-300 mt-4"
+                      disabled={loading}
+                    >
+                      {loading ? "Logging in..." : "Login"}
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
               <CardFooter className="flex flex-col space-y-2 border-t border-indigo-100 pt-4">
                 <p className="text-sm text-center text-indigo-600">
@@ -190,100 +207,147 @@ const Login = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSignupSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-rollNumber" className="flex items-center gap-2 text-indigo-700">
-                      <KeyRound className="h-4 w-4" />
-                      Application/Roll Number
-                    </Label>
-                    <Input
-                      id="signup-rollNumber"
-                      name="rollNumber"
-                      type="text"
-                      required
-                      value={signupData.rollNumber}
-                      onChange={handleSignupChange}
-                      placeholder="e.g., B12345"
-                      className="w-full border-indigo-200 focus:border-indigo-400"
+                <Form {...signupForm}>
+                  <form onSubmit={signupForm.handleSubmit(handleSignupSubmit)} className="space-y-4">
+                    <FormField
+                      control={signupForm.control}
+                      name="reg_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-indigo-700">
+                            <KeyRound className="h-4 w-4" />
+                            Roll Number
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              placeholder="e.g., B12345" 
+                              className="w-full border-indigo-200 focus:border-indigo-400" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="flex items-center gap-2 text-indigo-700">
-                      <Mail className="h-4 w-4" />
-                      Email Address
-                    </Label>
-                    <Input
-                      id="email"
+                    
+                    <FormField
+                      control={signupForm.control}
+                      name="full_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-indigo-700">
+                            <UserPlus className="h-4 w-4" />
+                            Full Name
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              placeholder="Enter your full name" 
+                              className="w-full border-indigo-200 focus:border-indigo-400" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={signupForm.control}
                       name="email"
-                      type="email"
-                      required
-                      value={signupData.email}
-                      onChange={handleSignupChange}
-                      placeholder="your.email@example.com"
-                      className="w-full border-indigo-200 focus:border-indigo-400"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-indigo-700">
+                            <Mail className="h-4 w-4" />
+                            Email Address
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="email" 
+                              placeholder="your.email@example.com" 
+                              className="w-full border-indigo-200 focus:border-indigo-400" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="mobile" className="flex items-center gap-2 text-indigo-700">
-                      <Smartphone className="h-4 w-4" />
-                      Mobile Number
-                    </Label>
-                    <Input
-                      id="mobile"
+                    
+                    <FormField
+                      control={signupForm.control}
                       name="mobile"
-                      type="tel"
-                      required
-                      value={signupData.mobile}
-                      onChange={handleSignupChange}
-                      placeholder="Enter your mobile number"
-                      className="w-full border-indigo-200 focus:border-indigo-400"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-indigo-700">
+                            <Smartphone className="h-4 w-4" />
+                            Mobile Number
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="tel" 
+                              placeholder="Enter your mobile number" 
+                              className="w-full border-indigo-200 focus:border-indigo-400" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="flex items-center gap-2 text-indigo-700">
-                      <KeyRound className="h-4 w-4" />
-                      Password
-                    </Label>
-                    <Input
-                      id="signup-password"
+                    
+                    <FormField
+                      control={signupForm.control}
                       name="password"
-                      type="password"
-                      required
-                      value={signupData.password}
-                      onChange={handleSignupChange}
-                      placeholder="Create a strong password"
-                      className="w-full border-indigo-200 focus:border-indigo-400"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-indigo-700">
+                            <KeyRound className="h-4 w-4" />
+                            Password
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="password" 
+                              placeholder="Create a strong password" 
+                              className="w-full border-indigo-200 focus:border-indigo-400" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword" className="flex items-center gap-2 text-indigo-700">
-                      <KeyRound className="h-4 w-4" />
-                      Confirm Password
-                    </Label>
-                    <Input
-                      id="confirmPassword"
+                    
+                    <FormField
+                      control={signupForm.control}
                       name="confirmPassword"
-                      type="password"
-                      required
-                      value={signupData.confirmPassword}
-                      onChange={handleSignupChange}
-                      placeholder="Confirm your password"
-                      className="w-full border-indigo-200 focus:border-indigo-400"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-indigo-700">
+                            <KeyRound className="h-4 w-4" />
+                            Confirm Password
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="password" 
+                              placeholder="Confirm your password" 
+                              className="w-full border-indigo-200 focus:border-indigo-400" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 transition-all duration-300 mt-4"
-                    disabled={loading}
-                  >
-                    {loading ? "Creating Account..." : "Create Account"}
-                  </Button>
-                </form>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 transition-all duration-300 mt-4"
+                      disabled={loading}
+                    >
+                      {loading ? "Creating Account..." : "Create Account"}
+                    </Button>
+                  </form>
+                </Form>
               </CardContent>
             </Card>
           </TabsContent>

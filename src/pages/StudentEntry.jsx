@@ -1,34 +1,63 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { WashingMachine } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 const StudentEntry = () => {
   const [rollNumber, setRollNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { user } = useSupabaseAuth();
 
-  const handleSubmit = (e) => {
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     
-    // Simulating an API call to check if user is registered
-    setTimeout(() => {
-      setLoading(false);
-      // For demo purposes, consider users with roll numbers starting with 'B' as registered
-      if (rollNumber.startsWith('B')) {
+    try {
+      // Check if the roll number is registered in our system
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('reg_number')
+        .eq('reg_number', rollNumber)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+      
+      if (data) {
+        // Roll number is registered
         navigate('/login', { state: { rollNumber } });
       } else {
+        // Roll number not found, redirect to signup
+        navigate('/login', { state: { rollNumber } });
         toast({
-          title: "Not Registered",
-          description: "You are not registered with us. Please contact the administrator.",
-          variant: "destructive",
+          title: "New User",
+          description: "You are not registered yet. Please create an account.",
         });
       }
-    }, 1000);
+    } catch (error) {
+      console.error('Error checking roll number:', error);
+      toast({
+        title: "Error",
+        description: "There was a problem checking your roll number. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,7 +99,7 @@ const StudentEntry = () => {
         
         <div className="mt-6 text-center text-sm text-gray-500">
           <p>
-            Not registered? Please contact the administrator for assistance.
+            Not registered? You'll be able to create an account after entering your roll number.
           </p>
         </div>
       </div>
