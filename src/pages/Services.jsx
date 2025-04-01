@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -10,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Minus, ShoppingCart, X } from 'lucide-react';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 
 const ClothingItem = ({ item, onAdd, onRemove, quantity }) => {
   return (
@@ -45,6 +47,7 @@ const Services = () => {
   const [serviceType, setServiceType] = useState('');
   const [showClothesDialog, setShowClothesDialog] = useState(false);
   const [selectedGender, setSelectedGender] = useState('male');
+  const { user } = useSupabaseAuth();
   const [clothesQuantities, setClothesQuantities] = useState({
     // Male items
     shirts: 0,
@@ -61,19 +64,12 @@ const Services = () => {
   });
 
   useEffect(() => {
-    // Check if user is authenticated
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    if (!isAuthenticated) {
-      navigate('/');
-      return;
-    }
-    
     // Set service type from location state if available
     if (location.state?.serviceType) {
       setServiceType(location.state.serviceType);
       setShowClothesDialog(true);
     }
-  }, [navigate, location.state]);
+  }, [location.state]);
 
   const handleAddItem = (item) => {
     setClothesQuantities(prev => ({

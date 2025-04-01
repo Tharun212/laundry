@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@radix-ui/react-select";
 import { toast } from "@/hooks/use-toast";
 import { ShoppingBag, Trash2, Clock } from 'lucide-react';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
+import { supabase } from '../integrations/supabase/client';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -22,19 +23,36 @@ const Cart = () => {
     '6:30 PM': { total: 20, booked: 20 }, // Full slot for demo
   });
   const [checkoutStep, setCheckoutStep] = useState(1);
+  const { user } = useSupabaseAuth();
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    if (!isAuthenticated) {
-      navigate('/');
-      return;
-    }
-    
     // Load cart items from localStorage
     const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
     setCartItems(savedCart);
-  }, [navigate]);
+
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      
+      setUserProfile(data);
+      if (data.hostel) setHostel(data.hostel);
+      if (data.room_number) setFloor(data.room_number);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    }
+  };
 
   const handleRemoveItem = (itemId) => {
     const updatedCart = cartItems.filter(item => item.id !== itemId);
@@ -66,7 +84,7 @@ const Cart = () => {
     };
   };
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (checkoutStep === 1) {
       if (!hostel || !floor) {
         toast({
@@ -76,6 +94,23 @@ const Cart = () => {
         });
         return;
       }
+      
+      // Update user profile with hostel and floor if changed
+      if (userProfile && (userProfile.hostel !== hostel || userProfile.room_number !== floor)) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              hostel: hostel,
+              room_number: floor,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
+        } catch (error) {
+          console.error('Error updating profile:', error);
+        }
+      }
+      
       setCheckoutStep(2);
     } else if (checkoutStep === 2) {
       if (!slot) {

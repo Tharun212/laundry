@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, Package, ShoppingBag, Calendar } from 'lucide-react';
+import { useSupabaseAuth } from '../hooks/useSupabaseAuth';
 
 // Status color mapping
 const statusColors = {
@@ -39,14 +40,10 @@ const History = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
+  const { user } = useSupabaseAuth();
   
   useEffect(() => {
-    // Check if user is authenticated
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-    if (!isAuthenticated) {
-      navigate('/');
-      return;
-    }
+    if (!user) return;
     
     // Load order history from localStorage
     const orderHistory = JSON.parse(localStorage.getItem('orderHistory') || '[]');
@@ -99,7 +96,7 @@ const History = () => {
     } else {
       setOrders(orderHistory);
     }
-  }, [navigate]);
+  }, [user, navigate]);
 
   const getFilteredOrders = () => {
     if (activeTab === 'all') {
