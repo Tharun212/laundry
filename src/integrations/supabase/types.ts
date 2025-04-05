@@ -9,6 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      orders: {
+        Row: {
+          created_at: string
+          floor: string | null
+          hostel: string | null
+          id: string
+          items: Json
+          order_number: string
+          slot: string | null
+          status: string
+          total_items: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          floor?: string | null
+          hostel?: string | null
+          id?: string
+          items: Json
+          order_number: string
+          slot?: string | null
+          status?: string
+          total_items?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          floor?: string | null
+          hostel?: string | null
+          id?: string
+          items?: Json
+          order_number?: string
+          slot?: string | null
+          status?: string
+          total_items?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -18,6 +60,7 @@ export type Database = {
           id: string
           mobile: string
           reg_number: string
+          role: string
           room_number: string | null
           updated_at: string
         }
@@ -29,6 +72,7 @@ export type Database = {
           id: string
           mobile: string
           reg_number: string
+          role?: string
           room_number?: string | null
           updated_at?: string
         }
@@ -40,6 +84,7 @@ export type Database = {
           id?: string
           mobile?: string
           reg_number?: string
+          role?: string
           room_number?: string | null
           updated_at?: string
         }
@@ -50,7 +95,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_worker: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

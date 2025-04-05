@@ -3,113 +3,132 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@radix-ui/react-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TabsList, Tabs, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Shirt, Package, CheckCircle, AlertCircle, Search } from 'lucide-react';
 import { Input } from "@/components/ui/input";
+import WorkerNavbar from '@/components/WorkerNavbar';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const WorkerDashboard = () => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { user } = useSupabaseAuth();
 
   useEffect(() => {
-    // For the worker dashboard, we'll simulate a worker login
-    // In a real app, you would check for worker role
-    const role = localStorage.getItem('userRole');
-    
-    if (role === 'worker') {
-      setIsAuthenticated(true);
-    } else {
-      // For demo purposes, let's automatically set as worker
-      localStorage.setItem('userRole', 'worker');
-      localStorage.setItem('isAuthenticated', 'true');
-      setIsAuthenticated(true);
-    }
-    
-    // Load orders from localStorage
-    const orderHistory = JSON.parse(localStorage.getItem('orderHistory') || '[]');
-    
-    // For demonstration, let's add some mock data if no orders exist
-    if (orderHistory.length === 0) {
-      const mockOrders = [
-        {
-          id: 'ORD-12345',
-          date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          items: [
-            {
-              id: 1,
-              serviceType: 'washing',
-              items: [
-                { item: 'shirts', qty: 2 },
-                { item: 'trousers', qty: 1 },
-              ],
-              totalItems: 3,
-            }
-          ],
-          hostel: 'GANGA',
-          floor: '12',
-          slot: '11:00 AM',
-          status: 'pending',
-          studentName: 'John Doe',
-          rollNumber: 'B12345',
-        },
-        {
-          id: 'ORD-12346',
-          date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          items: [
-            {
-              id: 2,
-              serviceType: 'iron+washing',
-              items: [
-                { item: 'shirts', qty: 3 },
-                { item: 'bedsheets', qty: 2 },
-              ],
-              totalItems: 5,
-            }
-          ],
-          hostel: 'VEDAVATI',
-          floor: '6',
-          slot: '3:00 PM',
-          status: 'picked-up',
-          studentName: 'Jane Smith',
-          rollNumber: 'B67890',
-        },
-        {
-          id: 'ORD-12347',
-          date: new Date().toISOString(),
-          items: [
-            {
-              id: 3,
-              serviceType: 'washing',
-              items: [
-                { item: 'tshirts', qty: 4 },
-                { item: 'shorts', qty: 2 },
-              ],
-              totalItems: 6,
-            }
-          ],
-          hostel: 'GANGA',
-          floor: '21',
-          slot: '6:30 PM',
-          status: 'in-process',
-          studentName: 'Alex Johnson',
-          rollNumber: 'B54321',
-        },
-      ];
+    // Fetch worker profile to confirm worker status
+    const checkWorkerStatus = async () => {
+      if (!user) {
+        // Not authenticated, don't proceed with worker status check
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        
+        if (data?.role !== 'worker') {
+          // Not a worker, redirect to student dashboard
+          toast({
+            title: "Access Denied",
+            description: "You don't have worker privileges.",
+            variant: "destructive",
+          });
+          localStorage.setItem('userRole', 'student');
+          navigate('/dashboard');
+          return;
+        }
+
+        // Is a worker, proceed to fetch orders
+        fetchOrders();
+      } catch (error) {
+        console.error("Error checking worker status:", error);
+        setLoading(false);
+      }
+    };
+
+    checkWorkerStatus();
+  }, [user, navigate]);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      // Workers can see all orders
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          profiles:user_id (
+            full_name,
+            reg_number,
+            hostel,
+            room_number
+          )
+        `)
+        .order('created_at', { ascending: false });
       
-      localStorage.setItem('orderHistory', JSON.stringify(mockOrders));
-      setOrders(mockOrders);
-      setFilteredOrders(mockOrders);
-    } else {
-      setOrders(orderHistory);
-      setFilteredOrders(orderHistory);
+      if (error) throw error;
+      
+      // Transform data to match the component expectations
+      const transformedOrders = data.map(order => ({
+        id: order.order_number,
+        orderId: order.id, // Store the UUID for operations
+        date: order.created_at,
+        items: Array.isArray(order.items) ? order.items : [order.items],
+        hostel: order.hostel,
+        floor: order.floor,
+        slot: order.slot,
+        status: order.status,
+        studentName: order.profiles?.full_name || 'Unknown',
+        rollNumber: order.profiles?.reg_number || 'Unknown',
+      }));
+      
+      setOrders(transformedOrders);
+      setFilteredOrders(transformedOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load orders. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    if (user) {
+      // Set up real-time subscription for order updates
+      const channel = supabase
+        .channel('public:orders')
+        .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'orders'
+        }, () => {
+          // Refresh orders when changes are detected
+          fetchOrders();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
 
   // Update filtered orders when tab or search query changes
   useEffect(() => {
@@ -127,28 +146,52 @@ const WorkerDashboard = () => {
         order.id.toLowerCase().includes(query) ||
         order.studentName?.toLowerCase().includes(query) ||
         order.rollNumber?.toLowerCase().includes(query) ||
-        order.hostel.toLowerCase().includes(query)
+        order.hostel?.toLowerCase().includes(query)
       );
     }
     
     setFilteredOrders(filtered);
   }, [activeTab, searchQuery, orders]);
 
-  const handleUpdateStatus = (orderId, newStatus) => {
-    // Update order status
-    const updatedOrders = orders.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    );
-    
-    setOrders(updatedOrders);
-    
-    // Update in localStorage
-    localStorage.setItem('orderHistory', JSON.stringify(updatedOrders));
-    
-    toast({
-      title: "Status Updated",
-      description: `Order ${orderId} status changed to ${newStatus.replace('-', ' ')}.`,
-    });
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    try {
+      // Find the order with this ID to get the UUID
+      const orderToUpdate = orders.find(order => order.id === orderId);
+      if (!orderToUpdate) {
+        toast({
+          title: "Error",
+          description: "Order not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderToUpdate.orderId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Status Updated",
+        description: `Order ${orderId} status changed to ${newStatus.replace('-', ' ')}.`,
+      });
+      
+      // Update local state immediately for better UX
+      const updatedOrders = orders.map(order => 
+        order.id === orderId ? { ...order, status: newStatus } : order
+      );
+      
+      setOrders(updatedOrders);
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update the order status. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDate = (dateString) => {
@@ -245,7 +288,7 @@ const WorkerDashboard = () => {
     </Card>
   );
 
-  if (!isAuthenticated) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center p-8">
@@ -253,7 +296,7 @@ const WorkerDashboard = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
           <p className="text-gray-600 mb-6">You need to be authenticated as a worker to access this page.</p>
           <Button 
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/login')}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Go to Login
@@ -265,31 +308,38 @@ const WorkerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-            <div className="flex items-center">
-              <Shirt className="h-8 w-8 text-blue-600 mr-3" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Worker Dashboard</h1>
-                <p className="text-sm text-gray-600">Manage student laundry orders</p>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                localStorage.setItem('userRole', 'student');
-                navigate('/');
-              }}
-            >
-              Switch to Student View
-            </Button>
-          </div>
-        </div>
-      </header>
+      <WorkerNavbar />
       
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 sm:px-0">
+          <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 flex items-center">
+                <Shirt className="h-6 w-6 mr-2 text-indigo-600" />
+                Worker Dashboard
+              </h1>
+              <p className="text-sm text-gray-600">Manage and update student laundry orders</p>
+            </div>
+            
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  localStorage.setItem('userRole', 'student');
+                  navigate('/dashboard');
+                }}
+              >
+                View as Student
+              </Button>
+              <Button 
+                onClick={() => fetchOrders()} 
+                className="bg-indigo-600 hover:bg-indigo-700"
+              >
+                Refresh Orders
+              </Button>
+            </div>
+          </div>
+          
           <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
               <TabsList>
@@ -314,7 +364,11 @@ const WorkerDashboard = () => {
           </div>
           
           <div className="mt-4">
-            {filteredOrders.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <Shirt className="h-12 w-12 text-indigo-600 animate-spin" />
+              </div>
+            ) : filteredOrders.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-lg shadow">
                 <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h2 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h2>

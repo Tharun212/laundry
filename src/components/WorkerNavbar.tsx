@@ -2,7 +2,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { WashingMachine, LogOut } from 'lucide-react';
+import { WashingMachine, LogOut, Home, User, Package } from 'lucide-react';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { toast } from "@/hooks/use-toast";
 
@@ -46,7 +46,26 @@ const WorkerNavbar: React.FC = () => {
               onClick={() => navigate('/worker')}
               className={isActive('/worker') ? "bg-indigo-600 text-white" : "text-gray-700"}
             >
+              <Home className="h-4 w-4 mr-2" />
               Dashboard
+            </Button>
+            
+            <Button 
+              variant={isActive('/worker/orders') ? "default" : "ghost"}
+              onClick={() => navigate('/worker/orders')} 
+              className={isActive('/worker/orders') ? "bg-indigo-600 text-white" : "text-gray-700"}
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Orders
+            </Button>
+            
+            <Button 
+              variant={isActive('/worker/profile') ? "default" : "ghost"}
+              onClick={() => navigate('/worker/profile')} 
+              className={isActive('/worker/profile') ? "bg-indigo-600 text-white" : "text-gray-700"}
+            >
+              <User className="h-4 w-4 mr-2" />
+              Profile
             </Button>
             
             <Button 

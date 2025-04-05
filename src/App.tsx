@@ -13,6 +13,7 @@ import History from "./pages/History";
 import WorkerDashboard from "./pages/WorkerDashboard";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import StudentEntry from "./pages/StudentEntry";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/entry" element={<StudentEntry />} />
             <Route path="/login" element={<Login />} />
             <Route 
               path="/dashboard" 

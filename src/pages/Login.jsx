@@ -28,6 +28,7 @@ const signupSchema = z.object({
   mobile: z.string().min(10, "Please enter a valid mobile number"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().min(6, "Please confirm your password"),
+  isWorker: z.boolean().default(false),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -67,6 +68,7 @@ const Login = () => {
       mobile: "",
       password: "",
       confirmPassword: "",
+      isWorker: false,
     },
   });
 
@@ -100,12 +102,17 @@ const Login = () => {
           reg_number: values.reg_number,
           full_name: values.full_name,
           mobile: values.mobile,
+          is_worker: values.isWorker ? 'true' : 'false', // Add is_worker flag
         }
       );
       
       if (!error) {
         setActiveTab("login");
         loginForm.setValue("email", values.email);
+        toast({
+          title: "Registration Successful",
+          description: "Your account has been created. Please login.",
+        });
       }
     } finally {
       setLoading(false);
@@ -366,6 +373,27 @@ const Login = () => {
                             />
                           </FormControl>
                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={signupForm.control}
+                      name="isWorker"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="flex items-center gap-2 text-indigo-700 cursor-pointer">
+                              <Briefcase className="h-4 w-4" />
+                              Register as Worker
+                            </FormLabel>
+                          </div>
                         </FormItem>
                       )}
                     />

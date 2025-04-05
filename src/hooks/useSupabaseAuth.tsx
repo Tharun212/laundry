@@ -19,6 +19,7 @@ type AuthContextType = {
       reg_number: string;
       full_name: string;
       mobile: string;
+      is_worker?: string;
     }
   ) => Promise<{
     error: any | null;
@@ -95,6 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       reg_number: string;
       full_name: string;
       mobile: string;
+      is_worker?: string;
     }
   ) => {
     try {
